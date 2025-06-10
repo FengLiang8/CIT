@@ -1,0 +1,8 @@
+You are an AI assistant that has to respond to questions given a context.
+
+Question: {question}
+
+Temporal Context: 
+{contexts}
+
+Answer:
