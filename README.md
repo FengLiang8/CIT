@@ -1,71 +1,81 @@
-# CIT 项目文件说明
+# CIT Project File Description
 
-本项目包含一系列用于处理、训练和评估大型语言模型（LLM）的脚本和数据文件，特别关注基于时间上下文的问答（TimeQA）。
+This project includes a collection of scripts and data files used for processing, training, and evaluating large language models (LLMs), with a particular focus on time-contextual question answering (TimeQA).
 
-## 主要脚本和文件功能
+## Main Scripts and File Functions
 
-### 数据处理与生成
+### Data Processing and Generation
 
-- **`getAPIdata.py`**: 从完整数据集中排除一个子集，并从剩余数据中随机抽样200条，用于API训练数据准备。
-- **`sub_timeqa_easy.py`**: 从 `TimeQA_Easy.json` 文件中随机抽取指定数量的样本，生成数据子集。
-- **`generate_training_data.py`**: 使用 DeepSeek API 和提供的提示模板 (`CI_prompt_train.txt`)，根据输入数据 (`TimeQA_API_training_200.json`) 生成训练用的问答对，并将结果保存到 `train_data_200.json`。
-- **`trl_formatted_data.py`**: 将 `train_data_200.json` 中的数据转换为 TRL (Transformer Reinforcement Learning) 库SFTTrainer所接受的格式，并保存为 `trl_formatted_data.json`。它使用 `CI_prompt_train.txt` 来构建prompt。
-- **`extract_full_entries.py`**: 从一个原始的多行JSON文件（例如 `TimeQA_Easy.json`）中，根据一个问题列表JSON文件（例如 `S300t100.json`），提取出包含这些问题的完整条目，并保存到新的JSON文件（例如 `N300t100.json`）。
+* **`getAPIdata.py`**: Excludes a subset from the full dataset and randomly samples 200 entries from the remaining data to prepare for API training.
+* **`sub_timeqa_easy.py`**: Randomly samples a specified number of examples from `TimeQA_Easy.json` to create a data subset.
+* **`generate_training_data.py`**: Uses the DeepSeek API and a provided prompt template (`CI_prompt_train.txt`) to generate question-answer pairs based on the input data (`TimeQA_API_training_200.json`), saving the result to `train_data_200.json`.
+* **`trl_formatted_data.py`**: Converts `train_data_200.json` into a format compatible with the TRL (Transformer Reinforcement Learning) library's SFTTrainer, saving it as `trl_formatted_data.json`. It builds prompts using `CI_prompt_train.txt`.
+* **`extract_full_entries.py`**: Extracts full entries from a multi-line JSON file (e.g., `TimeQA_Easy.json`) based on a JSON file of questions (e.g., `S300t100.json`), saving them to a new JSON file (e.g., `N300t100.json`).
 
-### 模型训练
+### Model Training
 
-- **`CI_train.py`**: 使用 `trl_formatted_data.json` 中的数据，通过SFTTrainer (Supervised Fine-tuning Trainer) 对 Qwen2.5-0.5B-Instruct 模型进行LoRA微调。训练参数和PEFT配置在此脚本中定义，训练好的模型保存在 `./sft_model` 目录下。
-- **`trl_test.py`**: 一个测试脚本，使用 `trl-lib/Capybara` 数据集对 Qwen2.5-0.5B-Instruct 模型进行SFTTrainer的LoRA微调测试。主要用于验证训练流程。
+* **`CI_train.py`**: Performs LoRA fine-tuning on the Qwen2.5-0.5B-Instruct model using data from `trl_formatted_data.json` with SFTTrainer (Supervised Fine-tuning Trainer). Training parameters and PEFT configurations are defined within the script, and the fine-tuned model is saved in the `./sft_model` directory.
+* **`trl_test.py`**: A test script for LoRA fine-tuning using the SFTTrainer on the `trl-lib/Capybara` dataset. Mainly used to validate the training workflow.
 
-### 模型评估
+### Model Evaluation
 
-- **`eval_model.py`**: 评估基础LLM在问答数据集上的表现。它加载指定的Hugging Face模型，使用提供的数据集JSON文件和提示模板文件，生成回答并计算Exact Match (EM) 和 F1分数。结果保存在指定的输出JSON文件中。
-- **`eval_sft_model.py`**: 评估经过SFT（Supervised Fine-tuning）微调后的LLM在问答数据集上的表现。它加载基础模型和PEFT LoRA权重，合并模型后进行评估，其余功能与 `eval_model.py` 类似。
-- **`check_json.py`**: 验证模型输出的JSON文件。它检查输出中 `<answer>` 标签内的内容是否与真实答案匹配，并打印前100个样本的准确率、`<answer>` 标签覆盖率和标签内准确率等统计信息。
-- **`select_failed_cases.py`**: 从评估结果JSON文件中筛选出表现不佳的样本（例如EM=0或F1较低的样本），提取问题和真实答案，保存为新的JSON文件，用于进一步分析或数据增强。
-- **`eval.sh`**: 一个shell脚本，用于批量运行模型评估。它调用 `eval_model.py` 和 `eval_sft_model.py` 对不同的模型（基础模型和SFT模型）和提示（基础提示和CI提示）在 `TimeQA_Easy_subset_1000.json` 数据集上进行评估，并将结果保存到 `results` 目录下的相应JSON文件中。
+* **`eval_model.py`**: Evaluates the performance of a base LLM on a QA dataset. It loads a specified Hugging Face model, uses the provided dataset and prompt template, generates answers, and computes Exact Match (EM) and F1 scores. Results are saved to a specified output JSON file.
+* **`eval_sft_model.py`**: Evaluates an SFT (Supervised Fine-tuned) model’s performance on a QA dataset. It loads the base model and PEFT LoRA weights, merges them, and performs evaluation. Other functions are similar to `eval_model.py`.
+* **`check_json.py`**: Validates the output JSON from model inference. It checks whether the contents within the `<answer>` tag match the true answers and prints statistics such as accuracy, `<answer>` tag coverage, and tag-internal accuracy for the first 100 samples.
+* **`select_failed_cases.py`**: Extracts poorly performing samples (e.g., EM=0 or low F1 scores) from evaluation results, saving the question and true answers to a new JSON file for further analysis or data augmentation.
+* **`eval.sh`**: A shell script to batch-run model evaluations. It invokes `eval_model.py` and `eval_sft_model.py` to evaluate both base and SFT models using different prompts on the `TimeQA_Easy_subset_1000.json` dataset, saving results to the `results` directory.
 
-### 提示文件
+### Prompt Files
 
-- **`base_prompt.txt`**: 一个基础的提示模板，包含问题和上下文的占位符，用于模型推理。
-- **`CI_prompt.txt`**: 一个更复杂的提示模板，指导模型使用链式思考（Chain of Thought, CoT）和反思（Reflection）来回答问题。它要求模型在 `<causal_reasoning>` 标签内进行逐步推理，在 `<reflection>` 标签内进行反思，并在 `<answer>` 标签内给出最终答案。
-- **`CI_prompt_train.txt`**: 与 `CI_prompt.txt` 类似，但额外包含一个 `{answer}` 占位符，用于在生成训练数据时，让模型学习如何根据已知答案进行链式思考和反思的推理过程。
+* **`base_prompt.txt`**: A basic prompt template containing placeholders for questions and context, used for inference.
+* **`CI_prompt.txt`**: A more advanced prompt template guiding the model to use Chain of Thought (CoT) and Reflection for answering. It instructs the model to reason step-by-step in the `<causal_reasoning>` tag, reflect in the `<reflection>` tag, and give the final answer in the `<answer>` tag.
+* **`CI_prompt_train.txt`**: Similar to `CI_prompt.txt`, but includes a `{answer}` placeholder to teach the model how to reason using CoT and Reflection given the correct answer during training.
 
-### 数据文件 (部分示例)
+### Data Files (Sample)
 
-- **`TimeQA_API_training_200.json`**: 包含200条用于API训练的问答数据。
-- **`TimeQA_Easy_subset_10.json` / `TimeQA_Easy_subset_100.json` / `TimeQA_Easy_subset_1000.json`**: `TimeQA_Easy.json` 的不同大小的子集。
-- **`train_data_200.json`**: 由 `generate_training_data.py` 生成的包含模型生成推理过程的训练数据。
-- **`trl_formatted_data.json`**: 经过 `trl_formatted_data.py` 处理后，符合TRL库SFTTrainer输入格式的训练数据。
-- **`sft_CI_result_100.json` / `sft_base_result_100.json`**: SFT模型在不同提示下的评估结果示例。
+* **`TimeQA_API_training_200.json`**: Contains 200 QA pairs used for API training.
+* **`TimeQA_Easy_subset_10.json` / `TimeQA_Easy_subset_100.json` / `TimeQA_Easy_subset_1000.json`**: Different-sized subsets of `TimeQA_Easy.json`.
+* **`train_data_200.json`**: Training data with model-generated reasoning, created by `generate_training_data.py`.
+* **`trl_formatted_data.json`**: Training data formatted for TRL SFTTrainer, created by `trl_formatted_data.py`.
+* **`sft_CI_result_100.json` / `sft_base_result_100.json`**: Sample evaluation results of SFT models under different prompts.
 
-### 其他
+### Others
 
-- **`.gitignore`**: 指定Git版本控制忽略的文件，例如 `TimeQA_Easy.json` (通常是较大的原始数据集)。
-- **`train_dataset.py`**: 一个简单的脚本，演示如何使用OpenAI API (DeepSeek) 进行聊天补全请求。看起来像是一个早期的测试或示例代码，可能与主要的训练流程不直接相关。
-- **`README.md`**: 本文件，提供项目结构的概览和文件功能说明。
+* **`.gitignore`**: Specifies files to be ignored by Git version control, such as `TimeQA_Easy.json` (usually a large raw dataset).
+* **`train_dataset.py`**: A simple script demonstrating how to make chat completion requests using the OpenAI (DeepSeek) API. Likely an early prototype or test script not directly tied to the main training pipeline.
+* **`README.md`**: This file, providing an overview of the project structure and file functionalities.
 
-## 目录结构
+## Directory Structure
 
-- **`.ipynb_checkpoints/`**: Jupyter Notebook的检查点文件目录。
-- **`results/`**: 存放模型评估结果的目录。
-  - **`.ipynb_checkpoints/`**: Jupyter Notebook的检查点文件目录 (在results内)。
-  - `CI_result_10.json`, `CI_result_100.json`, `base_result_10.json`, `base_result_100.json`, `base_result_1000.json`, `sft_CI_result_100.json`, `sft_base_result_100.json`: 不同条件下模型评估结果的JSON文件。
-- **`sft_model/`**: 存放SFT模型训练检查点 (checkpoints) 的目录。
-  - `checkpoint-xxxx/`: 各个训练步骤保存的模型权重和配置文件。
+* **`.ipynb_checkpoints/`**: Jupyter Notebook checkpoint directory.
+* **`results/`**: Stores model evaluation results.
 
-## 使用说明
+  * **`.ipynb_checkpoints/`**: Notebook checkpoints inside the `results` directory.
+  * Files like `CI_result_10.json`, `CI_result_100.json`, `base_result_10.json`, etc., contain evaluation results under various conditions.
+* **`sft_model/`**: Stores checkpoint files from SFT training.
 
-1.  **数据准备**: 
-    -   使用 `sub_timeqa_easy.py` 从原始数据创建子集。
-    -   使用 `getAPIdata.py` 准备用于API调用的数据。
-    -   运行 `generate_training_data.py` (需要配置API密钥) 生成包含推理过程的训练数据。
-    -   运行 `trl_formatted_data.py` 将数据转换为SFT训练格式。
-2.  **模型训练**: 
-    -   运行 `CI_train.py` 进行SFT微调。
-3.  **模型评估**: 
-    -   使用 `eval.sh` 脚本批量评估模型，或单独运行 `eval_model.py` / `eval_sft_model.py`。
-    -   使用 `check_json.py` 检查评估结果的格式和准确性。
-    -   使用 `select_failed_cases.py` 分析评估失败的案例。
+  * `checkpoint-xxxx/`: Checkpoints for different training steps.
 
-确保根据需要修改脚本中的文件路径和模型名称。
+## Usage Instructions
+
+1. **Data Preparation**:
+
+   * Use `sub_timeqa_easy.py` to create subsets from raw data.
+   * Use `getAPIdata.py` to prepare data for API calls.
+   * Run `generate_training_data.py` (requires API key setup) to generate training data with reasoning.
+   * Run `trl_formatted_data.py` to convert data for SFT training format.
+2. **Model Training**:
+
+   * Run `CI_train.py` to fine-tune the model using SFT.
+3. **Model Evaluation**:
+
+   * Use `eval.sh` to evaluate models in batch, or run `eval_model.py` / `eval_sft_model.py` individually.
+   * Use `check_json.py` to validate the format and accuracy of evaluation results.
+   * Use `select_failed_cases.py` to analyze failed cases.
+
+Ensure you modify file paths and model names in scripts according to your specific setup.
+
+---
+
+Let me know if you'd like this in a formatted document or if you want help customizing it for publication (e.g., GitHub).
+
